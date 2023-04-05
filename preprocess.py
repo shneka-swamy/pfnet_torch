@@ -8,9 +8,56 @@
 # This method is used mostly to train RNNs. 
 
 import numpy as np
+from torch.utils.data import Dataset, DataLoader
+import pandas as pd
+import torch
+import cv2
 
-# NOTE: This class controls the flow of data
-class House3DTrajData():
+# The following 3 functions are used to change the images to handle format
+
+def decode_image(image, resize=None):
+    img_str = cv2.imdecode(image, -1)
+    if resize is not None:
+        img_str = cv2.resize(img_str, resize)
+    return img_str
+
+def raw_images_to_array(images):
+    image_list = []
+    for image_str in images:
+        image = decode_image(image_str, (56, 56))
+        image = scale_observation(np.atleast_3d(image.astype(np.float32)))
+        image_list.append(image)
+
+    return np.stack(image_list, axis=0)
+
+def scale_observation(x):
+    if x.ndim == 2 or x.shape[2] == 1:  # depth
+        return x * (2.0 / 100.0) - 1.0
+    else:  # rgb
+        return x * (2.0/255.0) - 1.0
+
+# The files for both the annotations and the images are direclty given
+# TODO: The way files are read in this part might have to be changed
+# TODO: The way that the image and the label are returned might have to be changed
+class House3DTrajData(Dataset):
+    def __init__(self, annotation_file, image_file, transform=None, target_transform=None):
+        self.annotations = pd.read_csv(annotation_file)
+        self.image_dir = pd.read_csv(image_file)
+        self.transform = transform
+        self.target_transform = target_transform
+
+    def __len__(self):
+        return len(self.annotations)
+
+    def __getitem__(self, index):
+        if self.transform:
+            image = self.transform(image)
+        if self.target_transform:
+            label = self.target_transform(self.annotations)
+        return image, label
+
+# NOTE: This class controls the flow of data -- the House3DTrajData class is used for that purpose
+class House3DTrajProcess():
     def __init__(self, files, params, init_particles_cov):
         self.files = files
         self.mapmode = params.mapmode
@@ -21,13 +68,21 @@ class House3DTrajData():
         self.init_particles_cov = init_particles_cov
 
         # count the number of enteries in the dataset
-        # TODO: Work on this part after converting the dataset from tensorflow format to pytorch format    
-        
+        # TODO: Check this part after converting the dataset from tensorflow format to pytorch format    
+        # TODO: Finish the visualize the dataset part before this 
+        self.count = 0
+        for file in self.files:
+            self.count += House3DTrajData(file, params.mapdir).__len__()
 
+    def size(self):
+        return self.count
 
 def get_dataflow(files, params, is_training):
     batchsize = params.batchsize
     bptt_steps = params.bptt_steps
+    mapmode = params.mapmode
+    num_particles = params.num_particles
+    obsmode = params.obsmode
 
     # NOTE: Initial covariance matrix is a multivariate gaussian distribution 
     # The center is perturbed by the initial particles std
@@ -48,7 +103,24 @@ def get_dataflow(files, params, is_training):
         else:
             seed = None
 
+    # TODO: The df object is used to traverse through the dataset
+    df = House3DTrajProcess(files, params, init_particles_cov)
 
+    # TODO: Line number 447 - 466 in the method is not implemented
 
-    # TODO: This section of the code needs to be continued 
-    df = House3DTrajData(files, params, init_particles_cov)
+    obs_ch = {'rgb': 3, 'depth': 1, 'rgb_depth': 4}
+    map_ch = {'wall': 1, 'wall_door': 2, 'wall_roomtype': 10, 'wall_door_roomtype': 11}
+    types = [torch.float32, torch.float32, torch.float32, torch.float32, torch.float32, torch.bool]
+    # TODO: What is the requirement of using the sizes variable
+    sizes = [(batchsize, bptt_steps, 3), 
+             (batchsize, None, None, map_ch[mapmode]),
+             (batchsize, num_particles, 3),
+             (batchsize, bptt_steps, 56, 56, obs_ch[obsmode]),
+             (batchsize, bptt_steps, 3),
+             (),]
+    
+    # TODO: Must implement nextdata
+    nextdata = None
+
+    return nextdata, num_particles
+

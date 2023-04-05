@@ -11,9 +11,6 @@ def run_evaluation(params):
     # overwrite for evaluation
     params.batchsize = 1
     params.bptt_steps = params.trajlen
-    
-
-
 
 if __name__ == '__main__':
     params = command_parser()
