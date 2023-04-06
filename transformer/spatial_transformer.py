@@ -148,7 +148,7 @@ def visualize_stn(device, test_loader, model):
         data = next(iter(test_loader))[0].to(device)
 
         input_tensor = data.cpu()
-        transformed_input_tensor = model.stn(input_tensor).cpu()
+        transformed_input_tensor = model.stn(data).cpu()
 
         in_grid = tensor_to_np_image(
             torchvision.utils.make_grid(input_tensor))
