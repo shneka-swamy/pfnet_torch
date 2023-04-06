@@ -145,7 +145,7 @@ def tensor_to_np_image(inp):
 def visualize_stn(device, test_loader, model):
     with torch.no_grad():
         # Get a batch of training data
-        data, _ = next(iter(test_loader))[0].to(device)
+        data = next(iter(test_loader))[0].to(device)
 
         input_tensor = data.cpu()
         transformed_input_tensor = model.stn(input_tensor).cpu()
