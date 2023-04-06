@@ -142,7 +142,7 @@ def tensor_to_np_image(inp):
     return inp
 
 # Visualizing the STN results
-def visualize_stn(device):
+def visualize_stn(device, test_loader, model):
     with torch.no_grad():
         # Get a batch of training data
         data, _ = next(iter(test_loader))[0].to(device)
@@ -182,7 +182,7 @@ def main():
         test(model, device, test_loader)
     
     # Visualize the STN transformation on some input batch
-    visualize_stn(device)
+    visualize_stn(device, test_loader, model)
 
     plt.ioff()
     plt.show()
