@@ -1,25 +1,23 @@
 # This code is used to visualize the dataset
-# In this code this part is used to convert the .tfrecord file to a file
-# that can be used by Torch. 
-
-# NOTE: The dataset is stored in the same format as the reading result from the .tfrecord is
-# Thus, the 'decode_image' and the 'raw_images_to_array' functions must be used.
+# In this code one data from a set of data is shown for visualization
+# This code is independent of all the other code and is required for the training to happen
 
 import torch
 from tfrecord.torch.dataset import TFRecordDataset
 import numpy as np
 import matplotlib.pyplot as plt
 import argparse
-from preprocess import raw_images_to_array, decode_image
+from preprocess import decode_image, raw_images_to_array
 
 # Path to store the dataset in the pytorch readable format
 def command_parser():
     parser = argparse.ArgumentParser(description='Visualize the dataset and convert it to pytorch readable format')
     parser.add_argument('--path_to_dataset', type=str, default='/home/pecs/DeepRob/test.tfrecords')
-    parser.add_argument('--path_to_save', type=str, default='/home/pecs/DeepRob/data.npy')
-    parser.add_argument('--v', action='store_true', default=False, help='check if the dataset is stored in .npy file properly')
-
+    parser.add_argument('--path_to_save', type=str, default='/home/pecs/DeepRob/valid.npy')
+    parser.add_argument('--v', action='store_true', default=False, help='verbose')
+    parser.add_argument('--vv', action='store_true', default=False, help='verbose verbose')
     return parser.parse_args()
+
 
 def display_data(args):
     # NOTE: The batch_size value can be changed
@@ -57,31 +55,34 @@ def display_data(args):
     rgb = raw_images_to_array(data['rgb'].numpy())
 
     depth = raw_images_to_array(data['depth'].numpy())
+    
+    if args.vv:
+        print("Size of the keys that are considered")
+        print("Changing nothing to the data: ")
+        print("Size states: ", true_states.shape)
+        print("Size odometry", odometry.shape)
+        print("After applying the decode_image function")
+        print("Size map_wall", map_wall.shape)
+        print("Size map_door", map_door.shape)
+        print("Size map_roomtype", map_roomtype.shape)
+        print("Size map_roomid", map_roomid.shape)
+        print("After applying raw_images_to_array function")
+        print("Size rgb", rgb.shape)
+        print("Size depth", depth.shape)
 
-    print("Plot the map wall and the first observation")
-    plt.figure()
-    plt.imshow(rgb[0])
-    plt.show()
+    if args.v:
+        print("Plot the map wall and the first observation")
+        plt.figure()
+        plt.imshow(rgb[0])
+        plt.show()
 
-    plt.figure()
-    plt.imshow(map_door.transpose())
-    plt.show()
-
-    # Storing data in the .npy format
-    np.save(args.path_to_save, data)
-
-# Check if the stored data can be loaded properly
-def check_data(args):
-    data = np.load(args.path_to_save, allow_pickle=True)
-    print("The loaded data is:")
-    # NOTE : The way to access the data in the .npy file
-    print(data.item()['states'])
+        plt.figure()
+        plt.imshow(map_door.transpose())
+        plt.show()
 
 def main():
     args = command_parser()
     display_data(args)
-    if args.v:
-        check_data(args)
 
 if __name__ == '__main__':
     main()

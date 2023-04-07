@@ -8,10 +8,10 @@ def command_parser():
     # TODO: How to use .config file to train the model ?? 
     parser.add_argument('--config', required=True, help='Config file. use ./config/train.conf for training')
 
-    # Get the training and the validation files in the .tfrecord format
+    # Get the training and the validation files in the .npy format
     # nargs='*' means that the user can input multiple files
-    parser.add_argument('--trainfiles', nargs='*', help='Data file(s) for training (tfrecord).')
-    parser.add_argument('--testfiles', nargs='*', help='Data file(s) for validation or evaluation (tfrecord).')
+    parser.add_argument('--trainfiles', nargs='*', help='Data file(s) for training (npy).')
+    parser.add_argument('--testfiles', nargs='*', help='Data file(s) for validation or evaluation (npy).')
 
     # input configuration
     parser.add_argument('--obsmode', type=str, default='rgb', 
