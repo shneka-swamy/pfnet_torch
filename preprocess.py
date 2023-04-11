@@ -15,7 +15,6 @@ import pandas as pd
 import torch
 import cv2
 
-
 def decode_image( image, resize=None):
         img_str = cv2.imdecode(image, -1)
         if resize is not None:
