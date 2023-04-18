@@ -263,7 +263,7 @@ def get_dataflow(files, params, is_training):
             seed = None
 
     # TODO: The df object is used to traverse through the dataset
-    # TODO: The files here is the path to the .npy files
+    # TODO: The files here is the path
     df = House3DTrajData(files, params, init_particles_cov, seed)
 
     # TODO: Line number 447 - 466 in the method is not implemented
