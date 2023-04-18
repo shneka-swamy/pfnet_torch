@@ -20,7 +20,14 @@ class PFCell(nn.Module):
     # TODO: The transition model might need to be changed -- the split function might not be correct
     # TODO: finish this part 
     def transition_model(self, paticle_states, odometry):
-        "Implements stochastic transition model of the particle filter."
+        """
+        Implements stochastic transition model of the particle filter.
+        In this function the particles are updated with the new odometry measurement.
+        The odometry measurement, that is the motion in x, y and theta -- can be used to
+        get the change in the pose
+        This value is further used to update the pose        
+        """
+
         translational_std = self.params.translational_std[0] / self.params.map_pixel_in_meters # in pixels
         rotational_std = self.params.translational_std[1] # in radians
 
@@ -30,7 +37,24 @@ class PFCell(nn.Module):
         noise_th = torch.random_normal(part_theta.shape(), mean=0.0, stddev=1.0)*rotational_std
         part_theta += noise_th
 
+        cos_th = torch.cos(part_theta)
+        sin_th = torch.sin(part_theta)
+        delta_x = cos_th * odom_x - sin_th * odom_y
+        delta_y = sin_th * odom_x + cos_th * odom_y
+        delta_th = odom_theta
 
+        delta_x += torch.random_normal(delta_x.shape, mean=0.0, stddev=1.0)
+        delta_y += torch.random_normal(delta_y.shape, mean=0.0, stddev=1.0)
+
+        return torch.stack([part_x+delta_x, part_y+delta_y, part_theta+delta_th])
+
+    @staticmethod
+    def transform_maps(global_maps, particle_states, local_map_size):
+        pass
+
+
+    def observation_model(self, global_maps, particle_states, observation):
+        local_maps = self.transform_maps(global_maps, particle_states, (28, 28))
 
 
 
