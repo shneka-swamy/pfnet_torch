@@ -7,7 +7,8 @@ import torch.nn.functional as F
 
 # TODO: Check if all the layer norms are set to ReLU activation
 # Develops a RNN
-class PFCell(nn.Module):
+class PFCell(torch.nn.RNNCellBase):
+
     def __init__(self, global_maps, params, batch_size, num_particles):
         super(PFCell, self).__init__()
         self.params = params
@@ -16,6 +17,17 @@ class PFCell(nn.Module):
         self.global_maps = global_maps
         self.state_shape = (batch_size, num_particles, 3)
         self.weight_shape = (batch_size, num_particles, )
+
+    def forward(self, inputs, states):
+        """
+        This function implements the __call__ function of the RNNCellBase class
+
+        """
+        
+        pass 
+
+
+
 
     # TODO: The transition model might need to be changed -- the split function might not be correct
     # TODO: finish this part 
@@ -48,14 +60,78 @@ class PFCell(nn.Module):
 
         return torch.stack([part_x+delta_x, part_y+delta_y, part_theta+delta_th])
 
+    # TODO: Must understand this function
     @staticmethod
     def transform_maps(global_maps, particle_states, local_map_size):
-        pass
+        """
+        Implements global to local map transformation.
+        """
+        batch_size, num_particles = particle_states.shape[0], particle_states.shape[1]
+        total_samples = batch_size * num_particles
+        flat_states = particle_states.reshape(total_samples, 3)
 
+        # defining helper variables
+        input_shape = global_maps.shape
+        global_height = input_shape[1].to(torch.float32)
+        global_width = input_shape[2].to(torch.float32)
+        height_inverse = 1.0 / global_height
+        width_inverse = 1.0 / global_width
+
+        zero = torch.zeros(total_samples, dtype=torch.float32)
+        one = torch.ones(total_samples, dtype=torch.float32)
+
+        # Normalizing the orientation and precomput the sin and cos
+        window_scalar = 8.0
+        theta = -flat_states[:, 2] - 0.5 * np.pi
+        sin_theta = torch.sin(theta)
+        cos_theta = torch.cos(theta)
+        
+        # Constructing the affine transformation matrix 
+        # 1. Translate the globa map s.t. the center is at the particle state
+        translation_x = (flat_states[:, 0] * width_inverse * 2.0) - 1.0
+        translation_y = (flat_states[:, 1] * height_inverse * 2.0) - 1.0
+
+        transm1 = torch.stack([one, zero, translation_x, zero, one, translation_y, zero, zero, one], dim=1)
+        transm1 = transm1.reshape(total_samples, 3, 3)
+
+        # 2. Rotate the ma s.t the orientation matches that of the particles
+        rotm = torch.stack([cos_theta, sin_theta, zero, -sin_theta, cos_theta, zero, zero, zero, one], dim=1)
+        rotm = rotm.reshape(total_samples, 3, 3)
+
+        # 3. Scale down the map
+        scale_x = torch.full(total_samples, window_scalar * local_map_size[1] * width_inverse, dtype=torch.float32)
+        scale_y = torch.full(total_samples, window_scalar * local_map_size[0] * height_inverse, dtype=torch.float32)
+
+        scalem = torch.stack([scale_x, zero, zero, zero, scale_y, zero, zero, zero, one], dim=1)
+        scalem = scalem.reshape(total_samples, 3, 3)
+
+        # 4. translate the locaal map s.t the particles defines the bottom midpoint
+        translate_y2 = torch.full((total_samples,), -1.0, dtype=torch.float32)
+    
+        transm2 = torch.stack([one, zero, zero, zero, one, translate_y2, zero, zero, one], dim=1)
+        transm2 = transm2.reshape(total_samples, 3, 3)
+
+        # Chain the translation matrices into one: translate + rotate + scale + translate
+        transform_m = torch.matmul (torch.matmul(scalem, torch.matmul(rotm, transm1)), transm2)
+
+        # reshape the format expected by the spatial transform network
+        # TODO: Check if this is correct
+        transform_m = transform_m[:, :2].reshape(batch_size, num_particles, 6)
+
+        # do the image transformation using the spatial transformer network
+        # iterate over partilcles to avoid tiling large global maps
+        output_list = []
+        for i in range(num_particles):
+            output_list.append(transformer(global_maps, transform_m[:, i], local_map_size))
+        
+        local_maps = torch.stack(output_list, dim=1)
+        local_maps = local_maps.reshape(batch_size, num_particles, local_map_size[0], local_map_size[1], global_maps.shape[-1])
+        return local_maps
+    
 
     def observation_model(self, global_maps, particle_states, observation):
         local_maps = self.transform_maps(global_maps, particle_states, (28, 28))
-
+    
 
 
     @staticmethod
